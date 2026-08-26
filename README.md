@@ -1,43 +1,48 @@
 # dsh-image-picker
 
-DeepSeek Harness Web GUI 插件:在会话输入框左侧添加一个 📎 按钮,通过**系统文件选择器**选择图片并注入官方附件管线。
+DeepSeek Harness Web GUI 插件:在会话输入框左侧添加一个 📎 按钮,通过**系统文件选择器**添加附件。
+
+- 图片(png/jpeg/webp/gif)→ 合成 drop 注入**官方附件管线**:缩略图 rail、数量/大小校验、随消息上传
+- `.txt` / `.md` / `.markdown` → 浏览器内读取内容,以附件块形式插入草稿,agent 原生处理
+- `.docx` → 浏览器内迷你 ZIP 解析 + `DecompressionStream("deflate-raw")` 提取 `word/document.xml` 正文(支持中文、实体解码、段落保留),同样插入草稿
 
 ## 为什么需要它
 
-官方附件链路(`dsh-client-ui-attachment`)支持拖拽与粘贴,但在部分 Windows 环境下,从资源管理器/云盘客户端拖文件进浏览器会静默失败(常见根因:浏览器以管理员身份运行而资源管理器不是,UIPI 完整性级别不一致;云盘占位文件;嵌入式 webview)。文件选择器对话框不经过任何拖拽通道,不受这些环境问题影响。
+官方附件链路(`dsh-client-ui-attachment`)支持拖拽与粘贴,但在部分 Windows 环境下,从资源管理器/云盘客户端拖文件进浏览器会静默失败(常见根因:浏览器以管理员身份运行而资源管理器不是,UIPI 完整性级别不一致;云盘占位文件;嵌入式 webview)。文件选择器对话框不经过任何拖拽通道,不受这些环境问题影响。而官方管线本身是图片专用的,文本类文件改走"内容内联":浏览器读出文本包上定界标记插入输入框,agent 随消息原生处理。
+
+## 容量护栏
+
+| 护栏 | 默认值 |
+|---|---|
+| 单文件截断 | 30,000 字符 |
+| 批量总量 | 60,000 字符(超出的文件列入"未处理"清单)|
+
+超出部分自动截断并标注原长度;不支持的类型会计入"未处理"清单而不会静默丢弃。
 
 ## 工作原理
 
 ```
-点击 📎 → <input type="file" accept="image/*" multiple>
-       → 构造 DataTransfer(含 Files)
-       → 在 [data-composer-card] 派发合成 dragenter/dragover/drop
-       → 官方 ComposerAttachments 的 document 级监听器接收
-       → onAddImages → intakeImages(数量/大小校验)→ 缩略图 rail
-       → 随消息一起上传
+点击 📎 → <input type="file" multiple>
+  ├─ image/*        → DataTransfer + 合成 drop → 官方 ComposerAttachments 接收
+  └─ 文本/docx      → File.text() / 内置 docx 解压器
+                    → React 安全的 value setter 写入 textarea
 ```
 
-完全复用官方管线,无自建上传逻辑。
+投递通道:host 壳(`lib/index.js`)激活时注册 `/dsh-image-picker/client.js` 静态路由,
+并通过 `webServer.tapIndex` 向页面注入 `<script defer>` 标签(whale-widget 同款模式);
+client 端是免模块系统的自执行 IIFE。
 
 ## 安装(web profile)
 
 ```bash
-# 1. 放置或克隆本包,然后在 profile 目录:
-cd ~/.dsh/profiles/web
-pnpm add file:H:/dw/dsh-image-picker   # 或 git 仓库地址
-
-# 2. 编辑 ~/.dsh/profiles/web/package.json,在 dsh.profile.bundles 数组加入 "dsh-image-picker"
-
-# 3. 重启 dsh web
+dsh plugin --profile web add github:liujia-io/dsh-image-picker
+# 重启 dsh web 生效
 ```
 
-重启前想立即生效:把一段临时 shim 追加进任一已加载插件的 client.js(如 dsh-cost-meter)。注意模块系统按启动清单物化插件,追加的独立 `load()` 调用不会被执行——shim 必须用**纯 DOM 注入**(MutationObserver 找 `[data-composer-card]`,把按钮插到原生"+"按钮旁),不能走插槽 API。代码带 `.dip-btn` 存在性检查与 `window.__DSH_IMAGE_PICKER__` 门控,与正式包并存时只渲染一个按钮;下次重启后删除该 shim 段即可。
+要求:仓库已声明 `dsh.bundle`;正在申请收录 [awesome-dsh-plugin](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin)(PR #3278)。
 
-## 临时 shim 状态
+## 版本
 
-2026-08-24 已将 v3 DOM 注入 shim 追加到 `~/.dsh/profiles/web/node_modules/dsh-cost-meter/lib/client.js` 尾部(标记:`/* ==== dsh-image-picker TEMPORARY SHIM (v3)`),当前无需重启即可使用。服务器下次重启后本插件正式生效,届时可删除该 shim 段。
-
-## 字段
-
-- 插槽:`conversation.input.left`(输入卡片左下角,"+"按钮旁)
-- 接受类型:image/png、image/jpeg、image/webp、image/gif
+- **1.1.0** — 文本与 docx 内容内联;容量护栏;跳过清单
+- 1.0.1 — 打包修复:真实的 `lib/index.js` host 入口 + `"."` 导出;client 改经 webServer 路由投递
+- 1.0.0 — 📎 选图按钮(官方附件管线)
