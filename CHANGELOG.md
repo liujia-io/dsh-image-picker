@@ -2,6 +2,12 @@
 
 本文件记录 `dsh-image-picker` 的版本演进。变更遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 约定。
 
+## [1.2.1] - 2026-08-30
+
+### Fixed
+
+- 文本 / `.md` / `.docx` 回执无法插入输入框：DSH 的输入框是 Lexical 富文本编辑器（`<div contenteditable data-composer-input>`），并非 `<textarea>`。改为优先定位 `[data-composer-input]`，通过合成 `paste` 事件（携带 `text/plain`）交给 composer 的 `PASTE_COMMAND` 处理，并保留 `execCommand("insertText")` 与纯 `<textarea>` 两条降级路径。
+
 ## [1.2.0] - 2026-08-26
 
 ### Changed
