@@ -2,6 +2,12 @@
 
 本文件记录 `dsh-image-picker` 的版本演进。变更遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 约定。
 
+## [1.2.2] - 2026-08-30
+
+### Fixed
+
+- 回执插入更健壮：`findComposerInput` 不再只依赖 `[data-composer-input]`，改为依次尝试「card 内 `[data-composer-input]` → card 内 `[contenteditable="true"]` / `[role=textbox]` → 全局 `[data-composer-input]` → 全局 `contenteditable` / `textbox`」，以适配 DSH rc 迭代间输入框 DOM 结构变化。
+
 ## [1.2.1] - 2026-08-30
 
 ### Fixed

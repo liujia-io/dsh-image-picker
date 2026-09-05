@@ -1,7 +1,7 @@
 {
   "name": "dsh-image-picker",
   "description": "DeepSeek Harness Web GUI 输入框 📎 选图按钮:通过系统文件选择器添加参考图,绕开拖拽环境问题,复用官方附件管线(缩略图/上限校验/随消息上传)。Image-picker button for the conversation composer.",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "license": "MIT",
   "type": "module",
   "repository": {
